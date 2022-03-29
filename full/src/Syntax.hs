@@ -9,6 +9,7 @@
              EmptyDataDecls,
              DeriveGeneric,
              DeriveDataTypeable,
+             StandaloneDeriving,
              CPP #-}
 
 {-# OPTIONS_GHC -Wall -fno-warn-unused-matches -fno-warn-orphans #-}
@@ -36,15 +37,20 @@ module Syntax where
 
 
 import GHC.Generics (Generic)
+import Data.Generics (Data)
 import Data.Typeable (Typeable)
 
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Unsafe (unsafeUnbind)
 import Unbound.Generics.LocallyNameless.TH (makeClosedAlpha)
+import Unbound.Generics.LocallyNameless.Name
+import Unbound.Generics.LocallyNameless.Bind
 import Text.ParserCombinators.Parsec.Pos       
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Maybe (fromMaybe)
+
+
 
 -----------------------------------------
 -- * Variable names
@@ -53,6 +59,8 @@ import Data.Maybe (fromMaybe)
 -- | term names, use unbound library to 
 -- automatically generate fv, subst, alpha-eq
 type TName = Name Term
+
+deriving instance Data TName
 
 -- | module names
 type MName  = String
@@ -129,18 +137,30 @@ data Term =
       --- (fully applied, erased arguments first)
    | Case Term [Match] Annot        -- ^ case analysis
      
-                 deriving (Show, Generic, Typeable)
+                 deriving (Show, Generic, Typeable, Data)
+
+deriving instance Data (Embed Annot)
+
+deriving instance Data (Embed Term)
+
+deriving instance Data (Bind (TName, Embed Annot) Term)
+
+deriving instance Data (Bind (TName, Embed Term) Term)
+
+deriving instance Data (Bind Pattern Term)
+
+deriving instance Data (Bind (TName, TName) Term)
                
 -- | An 'Annot' is optional type information               
-newtype Annot = Annot (Maybe Term) deriving (Show, Generic, Typeable)
+newtype Annot = Annot (Maybe Term) deriving (Show, Generic, Typeable, Data)
 
 -- | A 'Match' represents a case alternative
-data Match = Match SourcePos (Bind Pattern Term) deriving (Show, Generic, Typeable)
+data Match = Match SourcePos (Bind Pattern Term) deriving (Show, Generic, Typeable, Data)
 
 -- | The patterns of case expressions bind all variables 
 -- in their respective branches.
 data Pattern = PatCon DCName [(Pattern, Epsilon)]
-             | PatVar TName deriving (Show, Eq, Generic, Typeable)
+             | PatVar TName deriving (Show, Eq, Generic, Typeable, Data)
 
 
 
@@ -157,16 +177,16 @@ data Module = Module { moduleName         :: MName,
                        
                      }
               
-  deriving (Show, Generic, Typeable)
+  deriving (Show, Generic, Typeable, Data)
 
 newtype ModuleImport = ModuleImport MName
-  deriving (Show,Eq, Generic, Typeable)
+  deriving (Show,Eq, Generic, Typeable, Data)
 
 data ConstructorNames = ConstructorNames {
                           tconNames :: Set String,
                           dconNames :: Set String
                         }
-  deriving (Show, Eq, Generic, Typeable)
+  deriving (Show, Eq, Generic, Typeable, Data)
 
 
 -- | Declarations are the components of modules
@@ -189,11 +209,11 @@ data Decl = Sig     TName  Term
             -- not include any information about its data 
             -- constructors
             
-  deriving (Show, Generic, Typeable)
+  deriving (Show, Generic, Typeable, Data)
 
 -- | A Data constructor has a name and a telescope of arguments
 data ConstructorDef = ConstructorDef SourcePos DCName Telescope
-  deriving (Show, Generic, Typeable)
+  deriving (Show, Generic, Typeable, Data)
            
 -------------
 -- * Telescopes
@@ -204,16 +224,16 @@ data ConstructorDef = ConstructorDef SourcePos DCName Telescope
 data Telescope = Empty
     | Cons   Epsilon TName Term Telescope
     | Constraint Term Term Telescope
-  deriving (Show, Generic, Typeable)
+  deriving (Show, Generic, Typeable, Data)
            
 -- | Epsilon annotates the sort of a data constructor argument
 data Epsilon = 
     Runtime 
   | Erased
-     deriving (Eq,Show,Read,Bounded,Ord,Generic,Typeable)
+     deriving (Eq,Show,Read,Bounded,Ord,Generic,Typeable, Data)
 
 -- | An argument is tagged with whether it should be erased
-data Arg  = Arg Epsilon Term deriving (Show, Generic, Typeable)           
+data Arg  = Arg Epsilon Term deriving (Show, Generic, Typeable, Data)           
 
 
 -------------
@@ -357,6 +377,8 @@ $(makeClosedAlpha ''SourcePos)
 --   swaps' _ _ = id
 --   freshen' _ x = return (x, mempty)
 --   lfreshen' _ x cont = cont x mempty
+
+
   
 instance Subst b SourcePos where subst _ _ = id ; substs _ = id
 
