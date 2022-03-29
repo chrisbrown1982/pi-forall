@@ -126,7 +126,7 @@ equate t1 t2 = if (aeq t1 t2) then return () else do
       equate s1 s2
       -- require branches to be in the same order
       -- on both expressions
-      let matchBr (Match bnd1) (Match bnd2) = do
+      let matchBr (Match pos1 bnd1) (Match pos2 bnd2) = do
             mpb <- unbind2 bnd1 bnd2
             case mpb of 
               Just (p1, a1, p2, a2) | p1 == p2 -> do
@@ -313,7 +313,7 @@ whnf' b (Case scrut mtchs annot) = do
   nf <- whnf' b scrut        
   case nf of 
     (DCon d args _) -> f mtchs where
-      f (Match bnd : alts) = (do
+      f (Match pos bnd : alts) = (do
           (pat, br) <- unbind bnd
           ss <- patternMatches (Arg Runtime nf) pat 
           whnf' b (substs ss br)) 

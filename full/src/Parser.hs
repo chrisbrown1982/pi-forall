@@ -611,10 +611,11 @@ pattern =  try (PatCon <$> dconstructor <*> many arg_pattern)
 
 match :: LParser Match
 match = 
-  do pat <- pattern 
+  do pos <- getPosition
+     pat <- pattern 
      reservedOp "->"
      body <- term
-     return $ Match (bind pat body)
+     return $ Match pos (bind pat body)
 
 caseExpr :: LParser Term
 caseExpr = do

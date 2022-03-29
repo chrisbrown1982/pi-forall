@@ -441,7 +441,7 @@ instance Display Term where
   display (LitUnit) = return $ text "tt"
 
 instance Display Match where
-  display (Match bd) =
+  display (Match pos bd) =
     lunbind bd $ \ (pat, ubd) -> do
       dpat <- display pat
       dubd <- display ubd

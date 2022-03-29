@@ -135,7 +135,7 @@ data Term =
 newtype Annot = Annot (Maybe Term) deriving (Show, Generic, Typeable)
 
 -- | A 'Match' represents a case alternative
-data Match = Match (Bind Pattern Term) deriving (Show, Generic, Typeable)
+data Match = Match SourcePos (Bind Pattern Term) deriving (Show, Generic, Typeable)
 
 -- | The patterns of case expressions bind all variables 
 -- in their respective branches.
@@ -251,6 +251,9 @@ unPosDeep = unPos -- something (mkQ Nothing unPos) -- TODO: Generic version of t
 unPosFlaky :: Term -> SourcePos
 unPosFlaky t = fromMaybe (newPos "unknown location" 0 0) (unPosDeep t)
 
+defaultPos :: SourcePos
+defaultPos = newPos "unknown location" 0 0
+
 -- | Is this the syntax of a literal (natural) number
 isNumeral :: Term -> Maybe Int
 isNumeral (Pos _ t) = isNumeral t
@@ -319,7 +322,7 @@ instance Erase Term where
        ((x,y),body) = unsafeUnbind bnd
 
 instance Erase Match where
-  erase (Match bnd) = Match (bind p (erase t)) where
+  erase (Match pos bnd) = Match pos (bind p (erase t)) where
     (p,t) = unsafeUnbind bnd 
     
 instance Erase Arg where    

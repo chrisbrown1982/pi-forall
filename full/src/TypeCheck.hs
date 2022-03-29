@@ -258,7 +258,7 @@ tcTerm t@(Case scrut alts ann1) ann2 = do
   (ascrut, sty) <- inferType scrut
   scrut' <- whnf ascrut
   (n, params) <- ensureTCon sty
-  let checkAlt (Match bnd) = do
+  let checkAlt (Match pos bnd) = do
          (pat, body) <- unbind bnd
          -- add variables from pattern to context
          -- could fail if branch is in-accessible
@@ -273,8 +273,8 @@ tcTerm t@(Case scrut alts ann1) ann2 = do
          when (any (`elem` (toListOf fv (erase ebody))) evars) $
            err [DS "Erased variable bound in match used"]
            
-         return (Match (bind pat ebody))
-  let pats = map (\(Match bnd) -> fst (unsafeUnbind bnd)) alts         
+         return (Match defaultPos (bind pat ebody))
+  let pats = map (\(Match pos bnd) -> fst (unsafeUnbind bnd)) alts         
   aalts <- mapM checkAlt alts
   exhaustivityCheck scrut' sty pats
   return (Case ascrut aalts (Annot (Just ty)), ty)
