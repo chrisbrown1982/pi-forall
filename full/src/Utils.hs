@@ -14,7 +14,7 @@ import System.Exit (exitFailure,exitSuccess)
 
 import Syntax
 
-
+                      
 -----------------------------------
 -- positions
 -----------------------------------
@@ -52,3 +52,27 @@ locToDecl (row, col) t =
      declBind def@(RecDef pos name term)
        | sourceLine pos == row && sourceColumn pos == col = Just def
      declBind _  = Nothing
+
+-- returns a top level type signature for a function
+
+getTopLevelSig :: (Data t)
+              =>  TName   -- the name of the function to find
+              ->  t        -- the AST
+              ->  Maybe Decl -- Maybe because there might not be a Sig
+getTopLevelSig name t = 
+   Generics.SYB.something (Nothing `Generics.SYB.mkQ` inSig) t
+ where
+   inSig s@(Sig pos sigName term)
+    | name == sigName = Just s 
+   inSig _ = Nothing
+
+
+---------------------------------------------------
+-- utilities for Names 
+---------------------------------------------------
+defToName :: Decl -> Maybe TName
+defToName (Sig _ name _ ) = Just name
+defToName (Def _ name _ ) = Just name
+defToName (RecDef _ name _ ) = Just name
+defToName (Data _ _ _) = Nothing
+defToName (DataSig _ _) = Nothing

@@ -54,8 +54,14 @@ parseAndTypeCheck pathToMainFile = do
 listToVect :: String -> Int -> Int -> IO ()
 listToVect pathToMainFile r c = do 
   m <- parseAndTypeCheck pathToMainFile
-
   let t = locToDecl (r,c) m
   case t of 
-      Just m -> putStrLn $ show m 
+      Just d  -> do
+                    let name = defToName d
+                    case name of 
+                      Nothing -> putStrLn $ "Couldn't find a name for the def"
+                      Just name -> do
+                           let sig = getTopLevelSig name m
+                           putStrLn (show sig)
       Nothing -> putStrLn $ "Invalid cursor position or identifier"
+
