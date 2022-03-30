@@ -24,11 +24,7 @@ import System.Environment(getArgs)
 import System.Exit (exitFailure,exitSuccess)
 import System.FilePath (splitFileName)
 
-exitWith :: Either a b -> (a -> IO ()) -> IO b
-exitWith res f = 
-  case res of 
-    Left x -> f x >> exitFailure 
-    Right y -> return y
+
     
 -- | Type check the given string in the empty environment
 go :: String -> IO ()
@@ -46,17 +42,7 @@ go str = do
           putStrLn "typed with type"
           putStrLn $ render $ disp ty
   
--- | Display a parse error to the user  
-putParseError :: ParseError -> IO ()  
-putParseError parseError = do
-  putStrLn $ render $ disp $ errorPos parseError
-  putStrLn $ show parseError
-  
--- | Display a type error to the user  
-putTypeError :: Disp d => d -> IO ()  
-putTypeError typeError = do 
-  putStrLn "Type Error:"
-  putStrLn $ render $ disp typeError
+
       
 -- | Type check the given file    
 goFilename2 :: String -> Int -> Int -> IO ()  

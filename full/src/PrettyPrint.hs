@@ -33,9 +33,6 @@ import Control.Applicative (Applicative(..), (<$>), (<*>))
 
 
 
-
-
-
 import qualified Data.Set as S
 
 -- | The 'Disp' class governs types which can be turned into 'Doc's

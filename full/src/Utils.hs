@@ -1,13 +1,19 @@
 module Utils where
 
+
 import GHC.Generics (Generic)
 import Data.Generics (Data)
 import Data.Typeable (Typeable)
 import Generics.SYB hiding (Generic, Refl)
 import Text.ParserCombinators.Parsec.Pos   
 
+import Text.PrettyPrint.HughesPJ -- (render)
+import Text.ParserCombinators.Parsec.Error 
+
+import System.Exit (exitFailure,exitSuccess)
 
 import Syntax
+
 
 -----------------------------------
 -- positions
