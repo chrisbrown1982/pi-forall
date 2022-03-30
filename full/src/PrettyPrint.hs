@@ -120,9 +120,9 @@ instance Disp [Decl] where
 
 instance Disp Decl where
 
-  disp (Def n term) = disp n <+> text "=" <+> disp term
+  disp (Def pos n term) = disp n <+> text "=" <+> disp term
 
-  disp (RecDef n r) = disp (Def n r)
+  disp (RecDef pos n r) = disp (Def defaultPos n r)
 
   disp (Sig pos n ty) =
         disp n <+> text ":" <+> disp ty

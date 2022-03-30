@@ -388,9 +388,10 @@ sigDef = do
   return $ Sig pos n ty 
 
 valDef = do
+  pos <- getPosition
   n <- try (do {n <- variable; reservedOp "="; return n})
   val <- expr
-  return $ Def n val
+  return $ Def pos n val
 
 
 ------------------------

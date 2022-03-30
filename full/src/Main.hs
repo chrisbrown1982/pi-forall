@@ -66,12 +66,12 @@ goFilename2 pathToMainFile r c = do
   putStrLn $ "processing " ++ name ++ "..."
   v <- runExceptT (getModules prefixes name)
   val <- v `exitWith` putParseError
-  -- putStrLn $ show val 
+  putStrLn $ show val 
   putStrLn "============================"
   putStrLn "type checking..."
   d <- runTcMonad emptyEnv (tcModules val)
   defs <- d `exitWith` putTypeError
-  -- putStrLn $ show (last defs)
+  putStrLn $ show (last defs)
   let t = locToDecl (r,c) (last defs)
   case t of 
       Just m -> putStrLn $ show m 

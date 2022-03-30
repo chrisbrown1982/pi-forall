@@ -134,13 +134,13 @@ lookupDef :: (MonadReader Env m)
           => TName -> m (Maybe Term)
 lookupDef v = do
   ctx <- asks ctx
-  return $ listToMaybe [a | Def v' a <- ctx, v == v']
+  return $ listToMaybe [a | Def pos v' a <- ctx, v == v']
 
 lookupRecDef :: (MonadReader Env m)
           => TName -> m (Maybe Term)
 lookupRecDef v = do
   ctx <- asks ctx
-  return $ listToMaybe [a | RecDef v' a <- ctx, v == v']
+  return $ listToMaybe [a | RecDef pos v' a <- ctx, v == v']
 
 -- | Find a type constructor in the context
 lookupTCon :: (MonadReader Env m, MonadError Err m)
@@ -218,7 +218,7 @@ extendCtxsGlobal ds =
 extendCtxTele :: (MonadReader Env m, MonadIO m) => Telescope -> m a -> m a
 extendCtxTele Empty m = m
 extendCtxTele (Constraint (Var x) t2 tele) m =
-  extendCtx (Def x t2) $ extendCtxTele tele m
+  extendCtx (Def defaultPos x t2) $ extendCtxTele tele m
 extendCtxTele (Constraint t1 t2 tele) m = do
   warn [DS "extendCtxTele found:", DD t1, DS "=", DD t2]
   extendCtxTele tele m

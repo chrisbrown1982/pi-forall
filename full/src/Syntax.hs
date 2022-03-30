@@ -184,7 +184,11 @@ locToDecl (row, col) t =
   where
      declBind s@(Sig pos name term) 
        | sourceLine pos == row && sourceColumn pos == col = Just s
-     declBind _ = Nothing
+     declBind def@(Def pos name term)
+       | sourceLine pos == row && sourceColumn pos == col = Just def
+     declBind def@(RecDef pos name term)
+       | sourceLine pos == row && sourceColumn pos == col = Just def
+     declBind _  = Nothing
 
 -----------------------------------------
 -- * Modules and declarations
@@ -215,11 +219,11 @@ data ConstructorNames = ConstructorNames {
 data Decl = Sig  SourcePos   TName  Term
            -- ^ Declaration for the type of a term
             
-          | Def     TName  Term
+          | Def  SourcePos   TName  Term
             -- ^ The definition of a particular name, must 
             -- already have a type declaration in scope
             
-          | RecDef TName Term 
+          | RecDef SourcePos TName Term 
             -- ^ A potentially (recursive) definition of 
             -- a particular name, must be declared 
 

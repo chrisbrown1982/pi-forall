@@ -183,7 +183,7 @@ tcTerm t@(If t1 t2 t3 ann1) ann2 = do
   (at1,_) <- checkType t1 TyBool
   nf <- whnf at1 
   let ctx b = case nf of 
-        Var x -> [Def x (LitBool b)]
+        Var x -> [Def defaultPos x (LitBool b)]
         _     -> []
   (at2, _) <- extendCtxs (ctx True) $ checkType t2 ty
   (at3, _) <- extendCtxs (ctx False) $ checkType t3 ty
@@ -193,7 +193,7 @@ tcTerm t@(If t1 t2 t3 ann1) ann2 = do
 tcTerm (Let bnd) ann = do       
   ((x,unembed->rhs),body) <- unbind bnd
   (arhs,aty) <- inferType rhs    
-  (abody,ty) <- extendCtxs [Sig defaultPos x aty, Def x arhs] $ 
+  (abody,ty) <- extendCtxs [Sig defaultPos x aty, Def defaultPos x arhs] $ 
                 tcTerm body ann
   when (x `elem` toListOf fv ty) $
     err [DS "Let bound variable", DD x, DS "escapes in type", DD ty]  
@@ -305,14 +305,14 @@ tcTerm t@(Subst tm p ann1) ann2 =  do
     m'        <- whnf m
     n'        <- whnf n
     case (m',n') of 
-        (Var x, _) -> return [Def x n']
-        (_, Var y) -> return [Def y m']
+        (Var x, _) -> return [Def defaultPos x n']
+        (_, Var y) -> return [Def defaultPos y m']
         (_,_) -> return [] 
         
   pdecl <- do
     p'        <- whnf apf
     case p' of 
-      (Var x) -> return [Def x (Refl (Annot (Just tp)))]
+      (Var x) -> return [Def defaultPos x (Refl (Annot (Just tp)))]
       _       -> return []
   let refined = extendCtxs (edecl ++ pdecl)
   (atm, _) <- refined $ checkType tm ty
@@ -348,7 +348,7 @@ tcTerm t@(Prod a b ann1) ann2 = do
      (Sigma bnd) -> do
       ((x, unembed-> tyA), tyB) <- unbind bnd
       (aa,_) <- checkType a tyA
-      (ba,_) <- extendCtxs [Sig defaultPos x tyA, Def x aa] $ checkType b tyB
+      (ba,_) <- extendCtxs [Sig defaultPos x tyA, Def defaultPos x aa] $ checkType b tyB
       return (Prod aa ba (Annot (Just ty)), ty)
      _ -> err [DS "Products must have Sigma Type", DD ty, 
                    DS "found instead"]
@@ -365,7 +365,7 @@ tcTerm t@(Pcase p bnd ann1) ann2 = do
       let tyB' = subst x (Var x') tyB
       nfp  <- whnf apr
       let ctx = case nfp of 
-            Var x0 -> [Def x0 (Prod (Var x') (Var y') 
+            Var x0 -> [Def defaultPos x0 (Prod (Var x') (Var y') 
                               (Annot (Just pty')))]
             _     -> []              
       (abody, bTy) <- extendCtxs ([Sig defaultPos x' tyA, Sig defaultPos y' tyB'] ++ ctx) $
@@ -480,8 +480,8 @@ constraintToDecls tx ty = do
   tynf  <- whnf ty
   if (aeq txnf tynf) then return []
     else case (txnf, tynf) of
-    (Var y, yty) -> return [Def y yty]
-    (yty, Var y) -> return [Def y yty]
+    (Var y, yty) -> return [Def defaultPos y yty]
+    (yty, Var y) -> return [Def defaultPos y yty]
     (TCon s1 tms1, TCon s2 tms2) 
         | s1 == s2 -> matchTerms tms1 tms2
     (Prod a1 a2 _, Prod b1 b2 _) -> matchTerms [a1,a2] [b1,b2]
@@ -584,7 +584,7 @@ pat2Term (PatVar x) ty = return (Var x)
 equateWithPat :: Term -> Pattern -> Type -> TcMonad [Decl]
 equateWithPat (Var x) pat ty = do
   tm <- pat2Term pat ty
-  return [Def x tm]
+  return [Def defaultPos x tm]
 equateWithPat (DCon dc args _) (PatCon dc' pats) (TCon n params)
   | dc == dc' = do
     (delta, deltai) <- lookupDCon dc n
@@ -667,7 +667,7 @@ data HintOrCtx = AddHint Hint
 
 -- | Check each sort of declaration in a module
 tcEntry :: Decl -> TcMonad HintOrCtx
-tcEntry (Def n term) = do
+tcEntry (Def defPos n term) = do
   oldDef <- lookupDef n
   case oldDef of
     Nothing -> tc
@@ -677,7 +677,7 @@ tcEntry (Def n term) = do
       lkup <- lookupHint n
       case lkup of
         Nothing -> do (aterm, ty) <- inferType term 
-                      return $ AddCtx [Sig defaultPos n ty, Def n aterm]
+                      return $ AddCtx [Sig defaultPos n ty, Def defPos n aterm]
         Just (pos, ty) ->
           let handler (Err ps msg) = throwError $ Err (ps) (msg $$ msg')
               msg' = disp [DS "When checking the term ", DD term,
@@ -687,9 +687,9 @@ tcEntry (Def n term) = do
                                checkType term ty `catchError` handler
             -- Put the elaborated version of term into the context.
             if (n `elem` toListOf fv eterm) then
-                 return $ AddCtx [Sig pos n ety, RecDef n eterm]
+                 return $ AddCtx [Sig pos n ety, RecDef defPos n eterm]
               else
-                 return $ AddCtx [Sig pos n ety, Def n eterm]
+                 return $ AddCtx [Sig pos n ety, Def defPos n eterm]
     die term' =
       extendSourceLocation (unPosFlaky term) term $
          err [DS "Multiple definitions of", DD n,
@@ -720,7 +720,7 @@ tcEntry (Data t delta cs) =
      -- finally, add the datatype to the env and perform action m
      return $ AddCtx [Data t edelta ecs]
 tcEntry (DataSig _ _ ) = err [DS "internal construct"]     
-tcEntry (RecDef _ _ )  = err [DS "internal construct"]     
+tcEntry (RecDef _ _ _ )  = err [DS "internal construct"]     
 
      
 -- | Make sure that we don't have the same name twice in the      
