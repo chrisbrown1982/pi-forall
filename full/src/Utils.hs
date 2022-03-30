@@ -15,6 +15,9 @@ import Syntax
 
 type SimpPos = (Int, Int)
 
+defaultPos :: SourcePos
+defaultPos = newPos "unknown location" 0 0
+
 -----------------------------------
 -- traversals for syntax selection
 -----------------------------------

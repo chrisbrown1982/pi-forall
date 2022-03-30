@@ -12,7 +12,7 @@ import PrettyPrint
 import Environment
 import TypeCheck
 import Parser
-import Syntax
+
 import Utils
 
 import Text.PrettyPrint.HughesPJ (render)

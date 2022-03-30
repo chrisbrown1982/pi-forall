@@ -9,6 +9,8 @@
 -- | The main routines for type-checking 
 module TypeCheck(tcModules, inferType, checkType) where
 
+import Utils
+
 import Syntax
 import Environment
 import PrettyPrint
@@ -34,7 +36,6 @@ import Control.Applicative
 
 import Control.Monad.Except
 import Text.PrettyPrint.HughesPJ
-import Data.Maybe
 import Data.List(nub)
 import Unbound.Generics.LocallyNameless.Unsafe (unsafeUnbind)
 

@@ -273,17 +273,8 @@ unPosDeep = unPos -- something (mkQ Nothing unPos) -- TODO: Generic version of t
 unPosFlaky :: Term -> SourcePos
 unPosFlaky t = fromMaybe (newPos "unknown location" 0 0) (unPosDeep t)
 
-defaultPos :: SourcePos
-defaultPos = newPos "unknown location" 0 0
 
-defaultPos2 :: SourcePos
-defaultPos2 = newPos "unknown location" 2 2
 
-defaultPos3 :: SourcePos
-defaultPos3 = newPos "unknown location" 3 3
-
-defaultPos5 :: SourcePos
-defaultPos5 = newPos "unknown location" 5 5
 
 -- | Is this the syntax of a literal (natural) number
 isNumeral :: Term -> Maybe Int

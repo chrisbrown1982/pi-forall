@@ -20,6 +20,7 @@ module Environment
 
 import Syntax
 import PrettyPrint
+import Utils
 
 import Unbound.Generics.LocallyNameless
 

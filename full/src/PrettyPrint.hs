@@ -8,6 +8,7 @@ module PrettyPrint(Disp(..), D(..))  where
 
 import Data.Typeable (Typeable)
 
+import Utils
 import Syntax
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Internal.Fold (toListOf)
