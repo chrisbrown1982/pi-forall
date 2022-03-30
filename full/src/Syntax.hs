@@ -50,7 +50,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Maybe (fromMaybe)
 
-
+import Generics.SYB hiding (Generic, Refl)
 
 -----------------------------------------
 -- * Variable names
@@ -162,7 +162,29 @@ data Match = Match SourcePos (Bind Pattern Term) deriving (Show, Generic, Typeab
 data Pattern = PatCon DCName [(Pattern, Epsilon)]
              | PatVar TName deriving (Show, Eq, Generic, Typeable, Data)
 
+type SimpPos = (Int, Int)
 
+locToMatch :: (Data t)
+            => SimpPos 
+            -> t
+            -> Maybe Match
+locToMatch (row, col) t = 
+   Generics.SYB.something (Nothing `Generics.SYB.mkQ` matchBind) t
+  where
+     matchBind m@(Match s bnd) 
+       | sourceLine s == row && sourceColumn s == col = Just m
+       | otherwise = Nothing
+
+locToDecl :: (Data t)
+            => SimpPos 
+            -> t
+            -> Maybe Decl
+locToDecl (row, col) t = 
+   Generics.SYB.something (Nothing `Generics.SYB.mkQ` declBind) t
+  where
+     declBind s@(Sig pos name term) 
+       | sourceLine pos == row && sourceColumn pos == col = Just s
+     declBind _ = Nothing
 
 -----------------------------------------
 -- * Modules and declarations
@@ -190,7 +212,7 @@ data ConstructorNames = ConstructorNames {
 
 
 -- | Declarations are the components of modules
-data Decl = Sig     TName  Term
+data Decl = Sig  SourcePos   TName  Term
            -- ^ Declaration for the type of a term
             
           | Def     TName  Term
@@ -273,6 +295,15 @@ unPosFlaky t = fromMaybe (newPos "unknown location" 0 0) (unPosDeep t)
 
 defaultPos :: SourcePos
 defaultPos = newPos "unknown location" 0 0
+
+defaultPos2 :: SourcePos
+defaultPos2 = newPos "unknown location" 2 2
+
+defaultPos3 :: SourcePos
+defaultPos3 = newPos "unknown location" 3 3
+
+defaultPos5 :: SourcePos
+defaultPos5 = newPos "unknown location" 5 5
 
 -- | Is this the syntax of a literal (natural) number
 isNumeral :: Term -> Maybe Int

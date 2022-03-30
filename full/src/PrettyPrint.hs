@@ -124,7 +124,7 @@ instance Disp Decl where
 
   disp (RecDef n r) = disp (Def n r)
 
-  disp (Sig n ty) =
+  disp (Sig pos n ty) =
         disp n <+> text ":" <+> disp ty
 
   disp (Data n params constructors) =

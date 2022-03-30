@@ -382,9 +382,10 @@ constructorDef = do
 
   
 sigDef = do
+  pos <- getPosition
   n <- try (variable >>= \v -> colon >> return v)
   ty <- expr
-  return $ Sig n ty 
+  return $ Sig pos n ty 
 
 valDef = do
   n <- try (do {n <- variable; reservedOp "="; return n})

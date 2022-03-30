@@ -12,6 +12,7 @@ import PrettyPrint
 import Environment
 import TypeCheck
 import Parser
+import Syntax
 
 import Text.PrettyPrint.HughesPJ (render)
 import Text.ParserCombinators.Parsec.Error 
@@ -57,6 +58,26 @@ putTypeError typeError = do
   putStrLn $ render $ disp typeError
       
 -- | Type check the given file    
+goFilename2 :: String -> Int -> Int -> IO ()  
+goFilename2 pathToMainFile r c = do
+  let prefixes = currentDir : mainFilePrefix : []
+      (mainFilePrefix, name) = splitFileName pathToMainFile
+      currentDir = "" 
+  putStrLn $ "processing " ++ name ++ "..."
+  v <- runExceptT (getModules prefixes name)
+  val <- v `exitWith` putParseError
+  -- putStrLn $ show val 
+  putStrLn "============================"
+  putStrLn "type checking..."
+  d <- runTcMonad emptyEnv (tcModules val)
+  defs <- d `exitWith` putTypeError
+  -- putStrLn $ show (last defs)
+  let t = locToDecl (r,c) (last defs)
+  case t of 
+      Just m -> putStrLn $ show m 
+      Nothing -> putStrLn $ "Invalid cursor position or identifier"
+
+-- | Type check the given file    
 goFilename :: String -> IO ()  
 goFilename pathToMainFile = do
   let prefixes = currentDir : mainFilePrefix : []
@@ -65,11 +86,16 @@ goFilename pathToMainFile = do
   putStrLn $ "processing " ++ name ++ "..."
   v <- runExceptT (getModules prefixes name)
   val <- v `exitWith` putParseError
+  putStrLn $ show val 
+  putStrLn "============================"
   putStrLn "type checking..."
   d <- runTcMonad emptyEnv (tcModules val)
   defs <- d `exitWith` putTypeError
-  putStrLn $ render $ disp (last defs)
-
+  putStrLn $ show (last defs)
+  let maybeMatch = locToMatch (0,0) (last defs)
+  case maybeMatch of 
+      Just m -> putStrLn $ render $ disp m 
+      Nothing -> putStrLn $ "Invalid cursor position or identifier"
 
 test :: IO ()
 test = do

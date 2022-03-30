@@ -68,7 +68,7 @@ tcTerm t@(Type) Nothing = return (t,Type)
 tcTerm (Pi bnd) Nothing = do 
   ((x, unembed -> tyA), tyB) <- unbind bnd
   atyA <- tcType tyA 
-  atyB <- extendCtx (Sig x atyA) $ tcType tyB
+  atyB <- extendCtx (Sig defaultPos x atyA) $ tcType tyB
   return (Pi (bind (x, embed atyA) atyB), Type) 
       
 -- Check the type of a function    
@@ -79,7 +79,7 @@ tcTerm (Lam bnd) (Just (Pi bnd2)) = do
   -- check tyA matches type annotation on binder, if present
   maybe (return ()) (equate tyA) ma
   -- check the type of the body of the lambda expression
-  (ebody, etyB) <- extendCtx (Sig x tyA) (checkType body tyB)
+  (ebody, etyB) <- extendCtx (Sig defaultPos x tyA) (checkType body tyB)
   return (Lam (bind (x, embed (Annot (Just tyA))) ebody), 
           Pi bnd2)  
 tcTerm (Lam _) (Just nf) = 
@@ -93,7 +93,7 @@ tcTerm (Lam bnd) Nothing = do
   -- check that the type annotation is well-formed
   atyA <- tcType tyA
   -- infer the type of the body of the lambda expression
-  (ebody, atyB) <- extendCtx (Sig x atyA) (inferType body)
+  (ebody, atyB) <- extendCtx (Sig defaultPos x atyA) (inferType body)
   return (Lam (bind (x, embed (Annot (Just atyA))) ebody), 
           Pi  (bind (x, embed atyA) atyB))  
 
@@ -112,7 +112,7 @@ tcTerm (ErasedLam bnd) (Just (ErasedPi bnd2)) = do
   -- check tyA matches type annotation on binder, if present
   maybe (return ()) (equate tyA) ma
   -- check the type of the body of the lambda expression
-  (ebody, etyB) <- extendCtx (Sig x tyA) (checkType body tyB)
+  (ebody, etyB) <- extendCtx (Sig defaultPos x tyA) (checkType body tyB)
   -- make sure that an 'erased' variable isn't used
   when (x `elem` toListOf fv (erase ebody)) $
     err [DS "Erased variable", DD x, 
@@ -130,7 +130,7 @@ tcTerm (ErasedLam bnd) Nothing = do
   -- check that the type annotation is well-formed
   atyA <- tcType tyA
   -- infer the type of the body of the lambda expression
-  (ebody, atyB) <- extendCtx (Sig x atyA) (inferType body)
+  (ebody, atyB) <- extendCtx (Sig defaultPos x atyA) (inferType body)
     -- make sure that an 'erased' variable isn't used
   when (x `elem` toListOf fv (erase ebody)) $
     err [DS "Erased variable", DD x, 
@@ -148,7 +148,7 @@ tcTerm (ErasedApp t1 t2) Nothing = do
 tcTerm (ErasedPi bnd) Nothing = do 
   ((x, unembed -> tyA), tyB) <- unbind bnd
   atyA <- tcType tyA 
-  atyB <- extendCtx (Sig x atyA) $ tcType tyB
+  atyB <- extendCtx (Sig defaultPos x atyA) $ tcType tyB
   return (ErasedPi (bind (x, embed atyA) atyB), Type)   
 
 
@@ -193,7 +193,7 @@ tcTerm t@(If t1 t2 t3 ann1) ann2 = do
 tcTerm (Let bnd) ann = do       
   ((x,unembed->rhs),body) <- unbind bnd
   (arhs,aty) <- inferType rhs    
-  (abody,ty) <- extendCtxs [Sig x aty, Def x arhs] $ 
+  (abody,ty) <- extendCtxs [Sig defaultPos x aty, Def x arhs] $ 
                 tcTerm body ann
   when (x `elem` toListOf fv ty) $
     err [DS "Let bound variable", DD x, DS "escapes in type", DD ty]  
@@ -273,7 +273,7 @@ tcTerm t@(Case scrut alts ann1) ann2 = do
          when (any (`elem` (toListOf fv (erase ebody))) evars) $
            err [DS "Erased variable bound in match used"]
            
-         return (Match defaultPos (bind pat ebody))
+         return (Match pos (bind pat ebody))
   let pats = map (\(Match pos bnd) -> fst (unsafeUnbind bnd)) alts         
   aalts <- mapM checkAlt alts
   exhaustivityCheck scrut' sty pats
@@ -338,7 +338,7 @@ tcTerm t@(Contra p ann1) ann2 = do
 tcTerm t@(Sigma bnd) Nothing = do        
   ((x,unembed->tyA),tyB) <- unbind bnd
   aa <- tcType tyA
-  ba <- extendCtx (Sig x aa) $ tcType tyB
+  ba <- extendCtx (Sig defaultPos x aa) $ tcType tyB
   return (Sigma (bind (x,embed aa) ba), Type)
   
   
@@ -348,7 +348,7 @@ tcTerm t@(Prod a b ann1) ann2 = do
      (Sigma bnd) -> do
       ((x, unembed-> tyA), tyB) <- unbind bnd
       (aa,_) <- checkType a tyA
-      (ba,_) <- extendCtxs [Sig x tyA, Def x aa] $ checkType b tyB
+      (ba,_) <- extendCtxs [Sig defaultPos x tyA, Def x aa] $ checkType b tyB
       return (Prod aa ba (Annot (Just ty)), ty)
      _ -> err [DS "Products must have Sigma Type", DD ty, 
                    DS "found instead"]
@@ -368,7 +368,7 @@ tcTerm t@(Pcase p bnd ann1) ann2 = do
             Var x0 -> [Def x0 (Prod (Var x') (Var y') 
                               (Annot (Just pty')))]
             _     -> []              
-      (abody, bTy) <- extendCtxs ([Sig x' tyA, Sig y' tyB'] ++ ctx) $
+      (abody, bTy) <- extendCtxs ([Sig defaultPos x' tyA, Sig defaultPos y' tyB'] ++ ctx) $
         checkType body ty
       return (Pcase apr (bind (x',y') abody) (Annot (Just ty)), bTy)
     _ -> err [DS "Scrutinee of pcase must have Sigma type"]
@@ -527,8 +527,8 @@ doSubst ss (Cons ep x ty tele') = do
 -- the pattern. 
 -- Also returns the erased variables so that they can be checked
 declarePat :: Pattern -> Epsilon -> Type -> TcMonad ([Decl], [TName])
-declarePat (PatVar x) Runtime y = return ([Sig x y],[])
-declarePat (PatVar x) Erased  y = return ([Sig x y],[x])
+declarePat (PatVar x) Runtime y = return ([Sig defaultPos x y],[])
+declarePat (PatVar x) Erased  y = return ([Sig defaultPos x y],[x])
 declarePat (PatCon d pats) Runtime (TCon c params) = do
   (delta, deltai) <- lookupDCon d c
   tele <- substTele delta params deltai   
@@ -621,7 +621,7 @@ tcTypeTele (Constraint tm1 tm2 tl) = do
   return (Constraint tm1' tm2' tele')
 tcTypeTele (Cons ep x ty tl) = do
   ty' <- tcType ty
-  tele' <- extendCtx (Sig x ty') $ tcTypeTele tl
+  tele' <- extendCtx (Sig defaultPos x ty') $ tcTypeTele tl
   return (Cons ep x ty' tele')
   
 
@@ -677,28 +677,28 @@ tcEntry (Def n term) = do
       lkup <- lookupHint n
       case lkup of
         Nothing -> do (aterm, ty) <- inferType term 
-                      return $ AddCtx [Sig n ty, Def n aterm]
-        Just ty ->
+                      return $ AddCtx [Sig defaultPos n ty, Def n aterm]
+        Just (pos, ty) ->
           let handler (Err ps msg) = throwError $ Err (ps) (msg $$ msg')
               msg' = disp [DS "When checking the term ", DD term,
                            DS "against the signature", DD ty]
           in do
-            (eterm, ety) <- extendCtx (Sig n ty) $
+            (eterm, ety) <- extendCtx (Sig pos n ty) $
                                checkType term ty `catchError` handler
             -- Put the elaborated version of term into the context.
             if (n `elem` toListOf fv eterm) then
-                 return $ AddCtx [Sig n ety, RecDef n eterm]
+                 return $ AddCtx [Sig pos n ety, RecDef n eterm]
               else
-                 return $ AddCtx [Sig n ety, Def n eterm]
+                 return $ AddCtx [Sig pos n ety, Def n eterm]
     die term' =
       extendSourceLocation (unPosFlaky term) term $
          err [DS "Multiple definitions of", DD n,
               DS "Previous definition was", DD term']
 
-tcEntry (Sig n ty) = do
+tcEntry (Sig pos n ty) = do
   duplicateTypeBindingCheck n ty
   ety <- tcType ty
-  return $ AddHint (Hint n ety)
+  return $ AddHint (Hint pos n ety)
 
 -- rule Decl_data
 tcEntry (Data t delta cs) =
@@ -731,10 +731,17 @@ duplicateTypeBindingCheck n ty = do
   l  <- lookupTyMaybe n
   l' <- lookupHint    n
   -- ... we don't care which, if either are Just.
-  case catMaybes [l,l'] of
-    [] ->  return ()
+  case (l,l') of -- --catMaybes [l,l'] of
+    (Nothing, Nothing) ->  return ()
     -- We already have a type in the environment so fail.
-    ty':_ ->
+    (Just ty',_) ->
+      let (Pos p  _) = ty
+          msg = [DS "Duplicate type signature ", DD ty,
+                 DS "for name ", DD n,
+                 DS "Previous typing was", DD ty']
+       in
+         extendSourceLocation p ty $ err msg
+    (_,Just (hintPos, ty')) ->
       let (Pos p  _) = ty
           msg = [DS "Duplicate type signature ", DD ty,
                  DS "for name ", DD n,

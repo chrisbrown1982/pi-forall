@@ -69,7 +69,7 @@ data SourceLocation where
   SourceLocation :: forall a. Disp a => SourcePos -> a -> SourceLocation
 
 -- | Type declarations
-data Hint = Hint TName Term
+data Hint = Hint SourcePos TName Term
 
 -- | Environment manipulation and accessing functions
 -- The context 'gamma' is a list
@@ -101,21 +101,21 @@ getTys :: (MonadReader Env m) => m [(TName,Term)]
 getTys = do
   ctx <- asks ctx
   return $ catMaybes (map unwrap ctx)
-    where unwrap (Sig v ty) = Just (v,ty)
+    where unwrap (Sig pos v ty) = Just (v,ty)
           unwrap _ = Nothing
 
 -- | Find a name's user supplied type signature.
-lookupHint   :: (MonadReader Env m) => TName -> m (Maybe Term)
+lookupHint   :: (MonadReader Env m) => TName -> m (Maybe (SourcePos, Term))
 lookupHint v = do
   hints <- asks hints
-  return $ listToMaybe [ ty | Hint v' ty <- hints, v == v']
+  return $ listToMaybe [ (pos, ty) | Hint pos v' ty <- hints, v == v']
 
 -- | Find a name's type in the context.
 lookupTyMaybe :: (MonadReader Env m)
          => TName -> m (Maybe Term)
 lookupTyMaybe v = do
   ctx <- asks ctx
-  return $ listToMaybe [ty | Sig  v' ty <- ctx, v == v']
+  return $ listToMaybe [ty | Sig pos v' ty <- ctx, v == v']
 
 -- | Find the type of a name specified in the context
 -- throwing an error if the name doesn't exist
@@ -223,7 +223,7 @@ extendCtxTele (Constraint t1 t2 tele) m = do
   warn [DS "extendCtxTele found:", DD t1, DS "=", DD t2]
   extendCtxTele tele m
 extendCtxTele (Cons ep x ty tele) m =
-  extendCtx (Sig x ty) $ extendCtxTele tele m
+  extendCtx (Sig defaultPos x ty) $ extendCtxTele tele m
 
 
 -- | Extend the context with a module
