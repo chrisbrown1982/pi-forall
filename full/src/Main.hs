@@ -13,6 +13,7 @@ import Environment
 import TypeCheck
 import Parser
 import Syntax
+import Utils
 
 import Text.PrettyPrint.HughesPJ (render)
 import Text.ParserCombinators.Parsec.Error 

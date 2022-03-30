@@ -162,33 +162,9 @@ data Match = Match SourcePos (Bind Pattern Term) deriving (Show, Generic, Typeab
 data Pattern = PatCon DCName [(Pattern, Epsilon)]
              | PatVar TName deriving (Show, Eq, Generic, Typeable, Data)
 
-type SimpPos = (Int, Int)
 
-locToMatch :: (Data t)
-            => SimpPos 
-            -> t
-            -> Maybe Match
-locToMatch (row, col) t = 
-   Generics.SYB.something (Nothing `Generics.SYB.mkQ` matchBind) t
-  where
-     matchBind m@(Match s bnd) 
-       | sourceLine s == row && sourceColumn s == col = Just m
-       | otherwise = Nothing
 
-locToDecl :: (Data t)
-            => SimpPos 
-            -> t
-            -> Maybe Decl
-locToDecl (row, col) t = 
-   Generics.SYB.something (Nothing `Generics.SYB.mkQ` declBind) t
-  where
-     declBind s@(Sig pos name term) 
-       | sourceLine pos == row && sourceColumn pos == col = Just s
-     declBind def@(Def pos name term)
-       | sourceLine pos == row && sourceColumn pos == col = Just def
-     declBind def@(RecDef pos name term)
-       | sourceLine pos == row && sourceColumn pos == col = Just def
-     declBind _  = Nothing
+
 
 -----------------------------------------
 -- * Modules and declarations
