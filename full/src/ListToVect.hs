@@ -98,22 +98,9 @@ refPiList (ErasedPi bnd) = do
 refPiList (Pi bnd) = do
     ((x,unembed -> tyA), tyB) <- unbind bnd
     liftIO $ putStrLn $ show (tyA)
-    case tyA of 
-        (TCon name terms) -> 
-             if name == "List"
-                then do 
-                    liftIO $ putStrLn "here"
-                    n <- fresh (string2Name "n") 
-                    tyB' <-extendCtxsGlobal [Sig defaultPos n (TCon "Nat" []), Sig defaultPos x tyA] $ refPiList tyB
-                    return (Pi (bind (x, embed (TCon "Vec" (Var n : terms))) tyB'))
-                else do 
-                    tyA' <- refPiList tyA
-                    tyB' <- extendCtx (Sig defaultPos x tyA') $ refPiList tyB
-                    return (Pi (bind (x, embed tyA') tyB'))
-        _ -> do
-                    tyA' <- refPiList tyA
-                    tyB' <- extendCtx (Sig defaultPos x tyA') $ refPiList tyB
-                    return (Pi (bind (x, embed tyA') tyB'))
+    tyA' <- refPiList tyA
+    tyB' <- extendCtx (Sig defaultPos x tyA') $ refPiList tyB
+    return (Pi (bind (x, embed tyA') tyB'))
 {-
    --  tyA' <- refPiList tyA
     tyB' <- extendCtxs [Sig defaultPos n (TCon "Nat" []), Sig defaultPos x tyA'] $ refPiList tyB
@@ -123,12 +110,13 @@ refPiList t@(TCon name terms)
   | name == "List" = do
                          -- liftIO $ putStrLn name
                          n <- fresh (string2Name "n") 
-                         t <-extendCtxsGlobal [Sig defaultPos n (TCon "Nat" [])] $ return (TCon "Vec" (Var n : terms))
-                         return t
+                         let n' = string2Name ((name2String n) ++ (show (name2Integer n)))
+                         return (TCon "Vec" (Var n' : terms))
+                         -- return t
   | otherwise = return t
-refPiList (Paren t) = do
+{-refPiList (Paren t) = do
     res <- refPiList t 
-    return (Paren res)
+    return (Paren res) -}
 refPiList t = do 
       liftIO $ putStrLn (">" ++ (show t) ++ "<")
       return t
