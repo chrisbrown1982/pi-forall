@@ -10,7 +10,7 @@ import Modules (getModules)
 
 import Environment
 import TypeCheck
-import Parser
+-- import Parser
 import PrettyPrint
 import Utils
 import Syntax
@@ -18,15 +18,16 @@ import Syntax
 import Text.PrettyPrint.HughesPJ (render)
 import Text.ParserCombinators.Parsec.Error 
 import Unbound.Generics.LocallyNameless
-import Unbound.Generics.LocallyNameless.Unsafe (unsafeUnbind)
-import Unbound.Generics.LocallyNameless.TH (makeClosedAlpha)
-import Unbound.Generics.LocallyNameless.Name
-import Unbound.Generics.LocallyNameless.Bind
+-- import Unbound.Generics.LocallyNameless.Unsafe (unsafeUnbind)
+-- import Unbound.Generics.LocallyNameless.TH (makeClosedAlpha)
+-- import Unbound.Generics.LocallyNameless.Name
+-- import Unbound.Generics.LocallyNameless.Bind
 
 import Control.Monad.Except
+import Control.Monad.Reader.Class
 
-import System.Environment(getArgs)
-import System.Exit (exitFailure,exitSuccess)
+-- import System.Environment(getArgs)
+import System.Exit (exitFailure)
 import System.FilePath (splitFileName)
 
 -- | Display a parse error to the user  
@@ -49,6 +50,7 @@ exitWith res f =
 
 
 -- parseAndTypeCheck :: String -> 
+parseAndTypeCheck :: String -> IO Module
 parseAndTypeCheck pathToMainFile = do
   let prefixes = currentDir : mainFilePrefix : []
       (mainFilePrefix, name) = splitFileName pathToMainFile
@@ -56,7 +58,7 @@ parseAndTypeCheck pathToMainFile = do
   putStrLn $ "processing " ++ name ++ "..."
   v <- runExceptT (getModules prefixes name)
   val <- v `exitWith` putParseError
-  putStrLn $ show val 
+  -- putStrLn $ show val 
   putStrLn "============================"
   putStrLn "type checking..."
   d <- runTcMonad emptyEnv (tcModules val)
@@ -69,8 +71,8 @@ listToVect pathToMainFile r c = do
   let t = locToDecl (r,c) m
   case t of 
       Just d  -> do
-                    let name = defToName d
-                    case name of 
+                    let n = defToName d
+                    case n of 
                       Nothing -> putStrLn $ "Couldn't find a name for the def"
                       Just name -> do
                            let sig = getTopLevelSig name m
@@ -84,40 +86,66 @@ listToVect pathToMainFile r c = do
 
 -- refacSigListToVect :: (MonadIO m, Fresh m) 
      --              => Maybe Decl -> m (Maybe Decl) 
+
+--buildSig :: [Term] -> Term -> m Term
+buildSig [] sig = return sig
+buildSig (ErasedPi bnd : vs) sig = do
+   ((x, unembed -> tyA), tyB) <- unbind bnd
+   sig' <- buildSig vs (ErasedPi (bind (x, embed tyA) sig))
+   return sig'
+
+
+refacSigListToVect :: (Fresh m, MonadReader Env m, MonadIO m) => Maybe Decl -> m (Maybe Decl)
 refacSigListToVect (Just s@(Sig pos name term)) = do
-      term' <- refPiList term 
-      return (Just (Sig pos name term')) 
+      (vars, term') <- refPiList [] term 
+      newSig <- buildSig vars term'
+      return (Just (Sig pos name newSig)) 
 refacSigListToVect x = return x
 
 -- refPiList :: (MonadIO m, Fresh m) => Term -> m Term 
-refPiList (ErasedPi bnd) = do
+-- returns a list of fresh variables to be added as explicits and the transformed type...
+refPiList :: (Fresh m, MonadReader Env m, MonadIO m) => [Term] -> Term -> m ([Term],Term)
+refPiList vars (ErasedPi bnd) = do
     ((x, unembed -> tyA), tyB) <- unbind bnd
    -- liftIO $ putStrLn $ (show tyB) 
-    tyB' <- extendCtx (Sig defaultPos x tyA) $ refPiList tyB
-    return (ErasedPi (bind (x, embed tyA) tyB'))
-refPiList (Pi bnd) = do
+    (vars',tyB') <- extendCtx (Sig defaultPos x tyA) $ refPiList vars tyB
+    return (vars', ErasedPi (bind (x, embed tyA) tyB'))
+refPiList vars (Pi bnd) = do
     ((x,unembed -> tyA), tyB) <- unbind bnd
     liftIO $ putStrLn $ show (tyA)
-    tyA' <- refPiList tyA
-    tyB' <- extendCtx (Sig defaultPos x tyA') $ refPiList tyB
-    return (Pi (bind (x, embed tyA') tyB'))
-{-
-   --  tyA' <- refPiList tyA
-    tyB' <- extendCtxs [Sig defaultPos n (TCon "Nat" []), Sig defaultPos x tyA'] $ refPiList tyB
-    return (Pi (bind (x, embed tyA') tyB'))
--}
-refPiList t@(TCon name terms)
+    (vars',tyA') <- refPiList vars tyA
+    -- check if the tyB is the last type in the chain ... 
+    -- if it is the last type, it shouldn't be another pi type.
+    case tyB of 
+     (TCon name terms) -> 
+       if name == "List" then
+         do
+            n <- fresh (string2Name "n") 
+            let n' = string2Name ((name2String n) ++ (show (name2Integer n)))
+            return (vars',Pi (bind (x, embed tyA') (TCon "Sig" [TCon "Nat" [], Paren (Lam (bind (n',(embed (Annot (Just (TCon "Nat" []))))) (TCon "Vec" (terms ++ [Var n']))))])))
+       else 
+        do 
+          (vars'', tyB') <- extendCtx (Sig defaultPos x tyA') $ refPiList vars' tyB
+          return (vars'', Pi (bind (x, embed tyA') tyB'))
+     _ -> 
+        do 
+          (vars'', tyB') <- extendCtx (Sig defaultPos x tyA') $ refPiList vars' tyB
+          return (vars'', Pi (bind (x, embed tyA') tyB'))
+
+-- remove this clause?
+
+refPiList vars t@(TCon name terms)
   | name == "List" = do
-                         -- liftIO $ putStrLn name
                          n <- fresh (string2Name "n") 
                          let n' = string2Name ((name2String n) ++ (show (name2Integer n)))
-                         return (TCon "Vec" (Var n' : terms))
+                             newVar = ErasedPi (bind (n', (embed (TCon "Nat" []))) TyUnit)
+
+                         return (newVar : vars, TCon "Vec" (terms ++ [Var n']))
                          -- return t
-  | otherwise = return t
-{-refPiList (Paren t) = do
-    res <- refPiList t 
-    return (Paren res) -}
-refPiList t = do 
+  | otherwise = return (vars,t)
+
+
+refPiList vars t = do 
       liftIO $ putStrLn (">" ++ (show t) ++ "<")
-      return t
+      return (vars,t)
     
